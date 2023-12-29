@@ -39,42 +39,58 @@ class ToolTip(object):
 class App:
     def __init__(self, root):
         self.root = root
+        root.resizable(False, False)
         root.title("SSH Recorder")
-        root.geometry("400x250")  # Adjust the size as needed
-        root.configure(bg='darkblue')
+        root.geometry("450x250")  # Adjust the size as needed
+        root.configure(bg='white')
 
         # Use a modern theme
         style = ttk.Style()
         style.theme_use('clam')
+        # Customize button style
+        style.configure('TButton', borderwidth='0', background='white', foreground='white')
+        style.map('TButton', background=[('active', 'gray90')])
 
         # Title Label
-        title_label = tk.Label(root, text="SSH Recorder", bg='darkblue', fg='gray30', font=('Helvetica', 30))
-        title_label.pack(pady=(10, 5))
+        original_image = Image.open("./DN-Logo.png")
 
-        # Customize button style
-        style.configure('TButton', borderwidth='4', background='gray25', foreground='white')
-        style.map('TButton', background=[('active', 'gray35')])
+        # Define the new size
+        new_width = 150
+        new_height = 30
+
+        # Resize the image using the resize method
+        resized_image = original_image.resize((new_width, new_height), Image.ANTIALIAS)
+
+        # Convert the Image object to a PhotoImage object
+        photo = ImageTk.PhotoImage(resized_image)
+
+        self.picture_label = tk.Label(root, image=photo)
+        self.picture_label.image = photo
+        self.picture_label.grid(row=1, column=0, padx=20, pady=20)
+
+        self.title_label = tk.Label(root, text="SSH Recorder", bg='white', fg='blue', font=('Helvetica', 25))
+        self.title_label.grid(row=1, column=1, columnspan=2, pady=20)
 
         # Label for the Entry
-        label = tk.Label(root, text="Jira ticket number:", bg='darkblue', fg='white', font=('Helvetica', 25))
-        label.pack(pady=(0, 5))
+        self.label = tk.Label(root, text="Jira ticket number:", bg='white', fg='gray30', font=('Helvetica', 20))
+        self.label.grid(row=2, column=0, columnspan=2, padx=20, pady=20)
 
         # Text Box Entry
-        self.text = ttk.Entry(root, font=('Helvetica', 25), width=30)
-        self.text.pack(pady=(30, 5))
+        self.text = tk.Entry(root, font=('Helvetica', 20), width=10)
+        self.text.grid(row=2, column=2, padx=20, pady=20)
 
         # Buttons with icons and tooltips
         self.record_button = self.create_icon_button(root, '\uf8d9')
         ToolTip(self.record_button, 'Start recording')
-        self.record_button.pack(side='left', expand=True)
+        self.record_button.grid(row=3, column=0, padx=20, pady=20)
 
         self.pause_button = self.create_icon_button(root, '\uf04c')
         ToolTip(self.pause_button, 'Pause recording')
-        self.pause_button.pack(side='left', expand=True)
+        self.pause_button.grid(row=3, column=1, padx=20, pady=20)
 
         self.stop_button = self.create_icon_button(root, '\uf04d')
         ToolTip(self.stop_button, 'Stop recording')
-        self.stop_button.pack(side='left', expand=True)
+        self.stop_button.grid(row=3, column=2, padx=20, pady=20)
 
 
     def create_icon_button(self, parent, icon_text, command=None):
@@ -82,15 +98,15 @@ class App:
         font_path = '/Users/bratiu/PycharmProjects/standalone-recorder/fontawesome-free-6.5.1-desktop/otfs/Font Awesome 6 Free-Solid-900.otf'
 
         # Create an image using PIL and set it on the button
-        font = ImageFont.truetype(font_path, 30)
+        font = ImageFont.truetype(font_path, 28)
         image = Image.new('RGBA', (30, 30), (255, 0, 0, 0))
         draw = ImageDraw.Draw(image)
-        draw.text((0, 0), icon_text, font=font, fill="white")
+        draw.text((0, 0), icon_text, font=font, fill="red")
         icon = ImageTk.PhotoImage(image)
 
         button = ttk.Button(parent, image=icon, command=command, style='TButton')
+        # button = tk.Button(parent, image=icon, command=command)
         button.image = icon  # keep a reference!
-        button.pack(side='left', padx=5, pady=5)
         return button
 
 
