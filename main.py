@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk, ImageFont, ImageDraw
-
+from write import SSHRecorder
 
 class ToolTip(object):
     def __init__(self, widget, text):
@@ -35,10 +35,13 @@ class ToolTip(object):
         if tw:
             tw.destroy()
 
+
 # Tkinter GUI with improved styling
 class App:
     def __init__(self, root):
         self.root = root
+        self.recorded_started = False
+        self._recorder = None
         root.resizable(False, False)
         root.title("SSH Recorder")
         root.geometry("450x250")  # Adjust the size as needed
@@ -80,20 +83,32 @@ class App:
         self.text.grid(row=2, column=2, padx=20, pady=20)
 
         # Buttons with icons and tooltips
-        self.record_button = self.create_icon_button(root, '\uf8d9')
+        self.record_button = self.create_icon_button(root, '\uf8d9', self.start_resume_recording)
         ToolTip(self.record_button, 'Start recording')
         self.record_button.grid(row=3, column=0, padx=20, pady=20)
 
-        self.pause_button = self.create_icon_button(root, '\uf04c')
+        self.pause_button = self.create_icon_button(root, '\uf04c', self.pause_recording, enabled=False)
+        self.pause_button['state'] = 'disabled'
         ToolTip(self.pause_button, 'Pause recording')
         self.pause_button.grid(row=3, column=1, padx=20, pady=20)
 
-        self.stop_button = self.create_icon_button(root, '\uf04d')
+        self.stop_button = self.create_icon_button(root, '\uf04d', self.stop_recording, enabled=False)
+        self.stop_button['state'] = 'disabled'
         ToolTip(self.stop_button, 'Stop recording')
         self.stop_button.grid(row=3, column=2, padx=20, pady=20)
 
 
-    def create_icon_button(self, parent, icon_text, command=None):
+    @property
+    def recorder(self):
+        """
+        get the SSHRecorder object
+        :return:
+        """
+        if self._recorder is None:
+            self._recorder = SSHRecorder()
+        return self._recorder
+
+    def create_icon_button(self, parent, icon_text, command=None, enabled=True):
         # Specify the relative path to your Font Awesome .otf file
         font_path = '/Users/bratiu/PycharmProjects/standalone-recorder/fontawesome-free-6.5.1-desktop/otfs/Font Awesome 6 Free-Solid-900.otf'
 
@@ -102,13 +117,69 @@ class App:
         image = Image.new('RGBA', (30, 30), (255, 0, 0, 0))
         draw = ImageDraw.Draw(image)
         draw.text((0, 0), icon_text, font=font, fill="red")
-        icon = ImageTk.PhotoImage(image)
+        icon_enabled = ImageTk.PhotoImage(image)
 
-        button = ttk.Button(parent, image=icon, command=command, style='TButton')
+        font = ImageFont.truetype(font_path, 28)
+        image = Image.new('RGBA', (30, 30), (255, 0, 0, 0))
+        draw = ImageDraw.Draw(image)
+        draw.text((0, 0), icon_text, font=font, fill="gray")
+        icon_disabled = ImageTk.PhotoImage(image)
+
+        button = ttk.Button(parent, image=icon_enabled if enabled else icon_disabled, command=command, style='TButton')
         # button = tk.Button(parent, image=icon, command=command)
-        button.image = icon  # keep a reference!
+        button.image_enabled = icon_enabled  # keep a reference!
+        button.image_disabled = icon_disabled
         return button
 
+    def update_button_image(self, button):
+        if str(button['state']) == 'disabled':
+            button.configure(image=button.image_disabled)
+        else:
+            button.configure(image=button.image_enabled)
+
+    def start_resume_recording(self):
+        """
+        start/resume recording the SSH session
+        :return:
+        """
+        if self.recorded_started:
+            self.recorder.resume_recording()
+        else:
+            self.recorder.set_jira_ticket(self.text.get())
+            self.recorder.start_recording()
+            self.recorded_started = True
+        self.record_button['state'] = 'disabled'
+        self.pause_button['state'] = 'normal'
+        self.stop_button['state'] = 'normal'
+        self.update_button_image(self.pause_button)
+        self.update_button_image(self.stop_button)
+        self.update_button_image(self.record_button)
+
+    def pause_recording(self):
+        """
+        pause recording the SSH session
+        :return:
+        """
+        self.recorder.pause_recording()
+        self.record_button['state'] = 'normal'
+        self.pause_button['state'] = 'disabled'
+        self.update_button_image(self.pause_button)
+        self.update_button_image(self.record_button)
+
+    def stop_recording(self):
+        """
+        stop recording the SSH session
+        :return:
+        """
+        self.recorded_started = False
+        self.recorder.stop_recording()
+        self._recorder = None
+        self.record_button['state'] = 'normal'
+        self.pause_button['state'] = 'disabled'
+        self.stop_button['state'] = 'disabled'
+        self.update_button_image(self.pause_button)
+        self.update_button_image(self.stop_button)
+        self.update_button_image(self.record_button)
 
 
 root = tk.Tk()
