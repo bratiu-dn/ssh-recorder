@@ -1,8 +1,8 @@
 from setuptools import setup
 
-APP = ['recorder2.py']
+APP = ['dn_recorder.py']
 DATA_FILES = [
-    ('', ['DN-Logo.png'])
+    ('', ['DN-Logo.png', 'script.txt'])
 ]
 OPTIONS = {
     'argv_emulation': False,

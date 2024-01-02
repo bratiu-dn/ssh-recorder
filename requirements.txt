@@ -1,2 +1,4 @@
 pillow
 jira
+pyqt5
+qtawesome
