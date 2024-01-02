@@ -1,0 +1,19 @@
+function ssh() {
+    log_dir="/tmp/ssh_logs"
+    mkdir -p "$log_dir"
+
+    # Find the parameter with an '@'
+    for arg in "$@"; do
+        if [[ "$arg" == *"@"* ]]; then
+            log_file="$log_dir/${arg}_$(date +%Y%m%d_%H%M%S).log"
+            break
+        fi
+    done
+
+    echo "Starting SSH session to $@ at $(date)" >> "$log_file"
+
+    # Use script to execute the SSH command and log the session
+    script -q -F "$log_file" /bin/zsh -c "/usr/bin/ssh $@"
+
+    echo "SSH session to $@ ended at $(date)" >> "$log_file"
+}

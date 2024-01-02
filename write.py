@@ -1,6 +1,6 @@
 import os
 import shutil
-
+from jira import JIRA
 
 class SSHRecorder:
     """
@@ -18,6 +18,24 @@ class SSHRecorder:
         self._existing_sessions = []
         self._new_sessions = []
         self._paused = False
+        self._jira = None
+
+    @property
+    def jira(self):
+        """
+        get the jira object
+        :return: the jira object
+        """
+        if self._jira is None:
+            USERNAME = 'dn-jira-auto01'
+            PASSWORD = 'PGIs3QjCuouxFcbtUvaf27A1'
+
+            jira_options = {
+                'server': "https://drivenets.atlassian.net/",
+            }
+
+            self._jira = JIRA(options=jira_options, basic_auth=(USERNAME + '@drivenets.com', PASSWORD))
+        return self._jira
 
     def set_jira_ticket(self, jira_ticket):
         """
@@ -66,6 +84,7 @@ class SSHRecorder:
         :return:
         """
         self._paused = False
+        self._new_sessions = [f for f in os.listdir(self.source_path) if f.endswith(".log") and f not in self._existing_sessions]
         print("resume recording!")
         for session in self._new_sessions:
             open(f"{self.source_path}{session}", 'w').close()
@@ -79,6 +98,25 @@ class SSHRecorder:
         if not self._paused:
             self.pause_recording()
         print(f"Here is the list of files that were recorded: {self._new_sessions}")
+
+    def upload_to_jira(self):
+        """
+        Upload the recordings to Jira
+        """
+
+        for f in [f for f in os.listdir(self.destination_path)]:
+            self.jira.add_attachment(issue=self.jira_ticket, attachment=f"{self.destination_path}{f}")
+
+    def validate_jira_ticket(self, ticket_id):
+        """
+        Validate the Jira ticket
+        """
+        try:
+            self.jira.issue(ticket_id)
+            self.set_jira_ticket(ticket_id)
+            return True
+        except:
+            return False
 
 
 if __name__ == '__main__':
