@@ -1,7 +1,8 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 from PIL import Image, ImageTk, ImageFont, ImageDraw
 from write import SSHRecorder
+
 
 class ToolTip(object):
     def __init__(self, widget, text):
@@ -39,12 +40,19 @@ class ToolTip(object):
 # Tkinter GUI with improved styling
 class App:
     def __init__(self, root):
+        def entry_callback(*args):
+            if self.text_var.get().strip():
+                self.record_button['state'] = 'normal'
+            else:
+                self.record_button['state'] = 'disabled'
+            self.update_button_image(self.record_button)
+
         self.root = root
         self.recorded_started = False
         self._recorder = None
         root.resizable(False, False)
         root.title("SSH Recorder")
-        root.geometry("450x250")  # Adjust the size as needed
+        root.geometry("450x280")  # Adjust the size as needed
         root.configure(bg='white')
 
         # Use a modern theme
@@ -79,13 +87,16 @@ class App:
         self.label.grid(row=2, column=0, columnspan=2, padx=20, pady=20)
 
         # Text Box Entry
-        self.text = tk.Entry(root, font=('Helvetica', 20), width=10)
+        self.text_var = tk.StringVar()
+        self.text = tk.Entry(root, textvariable=self.text_var, font=('Helvetica', 20), width=10)
         self.text.grid(row=2, column=2, padx=20, pady=20)
+        self.text_var.trace("w", entry_callback)
 
         # Buttons with icons and tooltips
         self.record_button = self.create_icon_button(root, '\uf8d9', self.start_resume_recording)
         ToolTip(self.record_button, 'Start recording')
         self.record_button.grid(row=3, column=0, padx=20, pady=20)
+        entry_callback()
 
         self.pause_button = self.create_icon_button(root, '\uf04c', self.pause_recording, enabled=False)
         self.pause_button['state'] = 'disabled'
@@ -96,6 +107,13 @@ class App:
         self.stop_button['state'] = 'disabled'
         ToolTip(self.stop_button, 'Stop recording')
         self.stop_button.grid(row=3, column=2, padx=20, pady=20)
+
+        # status text
+        self.status_text = tk.StringVar()
+        self.status_text.set("Status: Idle")
+        self.status_label = tk.Label(root, textvariable=self.status_text, bg='white', fg='gray30',
+                                     font=('Helvetica', 10))
+        self.status_label.grid(row=4, column=0, columnspan=1, padx=20, pady=20, sticky=tk.W)
 
 
     @property
@@ -148,12 +166,14 @@ class App:
             self.recorder.set_jira_ticket(self.text.get())
             self.recorder.start_recording()
             self.recorded_started = True
+            self.text['state'] = 'disabled'
         self.record_button['state'] = 'disabled'
         self.pause_button['state'] = 'normal'
         self.stop_button['state'] = 'normal'
         self.update_button_image(self.pause_button)
         self.update_button_image(self.stop_button)
         self.update_button_image(self.record_button)
+        self.status_text.set("Status: Recording")
 
     def pause_recording(self):
         """
@@ -165,12 +185,55 @@ class App:
         self.pause_button['state'] = 'disabled'
         self.update_button_image(self.pause_button)
         self.update_button_image(self.record_button)
+        self.status_text.set("Status: Paused    ")
 
     def stop_recording(self):
         """
         stop recording the SSH session
         :return:
         """
+        # Create a custom dialog
+        self.dialog = tk.Toplevel(self.root)
+        self.dialog.title("Stop Recording")
+
+        # Dialog body
+        tk.Label(self.dialog, text="Do you want to stop the recording and upload the results?").grid(row=0, column=0,
+                                                                                                     columnspan=3,
+                                                                                                     pady=10)
+
+        # Button for "Stop and Upload to Jira"
+        tk.Button(self.dialog, text="Stop and Upload to Jira",
+                  command=self.confirm_stop_upload).grid(row=1, column=0, padx=10, pady=20)
+
+        # Button for "Stop but Don't Upload"
+        tk.Button(self.dialog, text="Stop but Don't Upload",
+                  command=self.confirm_stop_no_upload).grid(row=1, column=1, padx=10, pady=20)
+
+        # Button for "Cancel"
+        tk.Button(self.dialog, text="Cancel",
+                  command=self.cancel_stop).grid(row=1, column=2, padx=10, pady=20)
+
+        # Make the dialog modal
+        self.dialog.transient(self.root)
+        self.dialog.grab_set()
+
+        # Now that all widgets are added, we can start the modal loop
+        self.root.wait_window(self.dialog)  # Wait for the dialog to be closed
+
+    def confirm_stop_upload(self):
+        """
+        stop recording the SSH session and upload to jira
+        :return:
+        """
+        self.confirm_stop_no_upload()
+        # upload to jira
+
+    def confirm_stop_no_upload(self):
+        """
+        stop recording the SSH session
+        :return:
+        """
+        self.dialog.destroy()
         self.recorded_started = False
         self.recorder.stop_recording()
         self._recorder = None
@@ -180,6 +243,11 @@ class App:
         self.update_button_image(self.pause_button)
         self.update_button_image(self.stop_button)
         self.update_button_image(self.record_button)
+        self.text['state'] = 'normal'
+        self.status_text.set("Status: Idle")
+
+    def cancel_stop(self):
+        self.dialog.destroy()
 
 
 root = tk.Tk()
