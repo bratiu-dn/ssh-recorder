@@ -232,6 +232,9 @@ class App(QWidget):
                 script_content = script_file.read()
 
             # Check if the script content is already in ~/.zshrc
+            if not os.path.isfile(zshrc_path):
+                # create the file if it doesn't exist
+                open(zshrc_path, 'w').close()
             with open(zshrc_path, 'r') as zshrc_file:
                 if script_content in zshrc_file.read():
                     print("Script is already in ~/.zshrc")
