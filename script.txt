@@ -2,18 +2,38 @@ function ssh() {
     log_dir="/tmp/ssh_logs"
     mkdir -p "$log_dir"
 
-    # Find the parameter with an '@'
+    # Initialize log_file
+    log_file=""
+
+    # Determine if it's an interactive session or a remote command
+    is_interactive=1
     for arg in "$@"; do
         if [[ "$arg" == *"@"* ]]; then
-            log_file="$log_dir/${arg}_$(date +%Y%m%d_%H%M%S).log"
+            if [[ -z "$log_file" ]]; then
+                log_file="$log_dir/${arg}_$(date +%Y%m%d%H%M%S).log"
+                continue
+            fi
+        fi
+        if [[ "$arg" != -* ]]; then
+            # Found a non-option argument, assuming remote command
+            is_interactive=0
             break
         fi
     done
 
-    echo "Starting SSH session to $@ at $(date)" >> "$log_file"
+    # Check if log_file is defined
+    if [[ -z "$log_file" ]]; then
+        echo "Error: Log file not defined."
+        return 1
+    fi
 
-    # Use script to execute the SSH command and log the session
-    script -q -F "$log_file" /bin/zsh -c "/usr/bin/ssh $@"
-
-    echo "SSH session to $@ ended at $(date)" >> "$log_file"
+    if [[ $is_interactive -eq 1 ]]; then
+        # Interactive SSH session
+        echo "Starting SSH session to $@ at $(date)" >> "$log_file"
+        script -q -F "$log_file" /bin/zsh -c "/usr/bin/ssh $@"
+        echo "SSH session to $@ ended at $(date)" >> "$log_file"
+    else
+        # Remote command execution
+        /usr/bin/ssh "$@"
+    fi
 }

@@ -23,6 +23,7 @@ style = """
             }
         """
 
+
 class App(QWidget):
     def __init__(self):
         super().__init__()
@@ -225,31 +226,48 @@ class App(QWidget):
     def append_script_to_zshrc(script_file_path, zshrc_path='~/.zshrc'):
         # Expand the user's home directory (~)
         zshrc_path = os.path.expanduser(zshrc_path)
+        start_marker = "# Appended script\n"
+        end_marker = "# End appended script\n"
 
         try:
             # Read the script from the file
             with open(script_file_path, 'r') as script_file:
                 script_content = script_file.read()
 
-            # Check if the script content is already in ~/.zshrc
-            if not os.path.isfile(zshrc_path):
-                # create the file if it doesn't exist
-                open(zshrc_path, 'w').close()
-            with open(zshrc_path, 'r') as zshrc_file:
-                if script_content in zshrc_file.read():
-                    print("Script is already in ~/.zshrc")
-                    return
+            # Read the existing .zshrc content
+            if os.path.isfile(zshrc_path):
+                with open(zshrc_path, 'r') as zshrc_file:
+                    zshrc_content = zshrc_file.readlines()
+                    if script_content in "".join(zshrc_content):
+                        return  # Script already exists in ~/.zshrc
+            else:
+                zshrc_content = []
 
-            # Append the script content to ~/.zshrc
-            with open(zshrc_path, 'a') as zshrc_file:
-                zshrc_file.write('\n# Appended script\n')
+            # Remove old script content if it exists
+            start_index = None
+            end_index = None
+            for i, line in enumerate(zshrc_content):
+                if start_marker in line:
+                    start_index = i
+                elif end_marker in line:
+                    end_index = i + 1
+                    break
+            if start_index is not None:
+                del zshrc_content[start_index:end_index]
+
+            # Append new script content
+            with open(zshrc_path, 'w') as zshrc_file:
+                zshrc_file.writelines(zshrc_content)
+                zshrc_file.write(start_marker)
                 zshrc_file.write(script_content)
+                zshrc_file.write('\n')
+                zshrc_file.write(end_marker)
 
-            print("Script appended successfully to ~/.zshrc")
+            print("Script updated successfully in ~/.zshrc")
             os.system("osascript -e 'tell application \"iTerm\" to quit without saving'")
 
         except Exception as e:
-            print(f"Error appending script to ~/.zshrc: {e}")
+            print(f"Error updating script in ~/.zshrc: {e}")
 
     def closeEvent(self, event):
         """
@@ -259,6 +277,7 @@ class App(QWidget):
         """
         # handle any cleanup here
         event.accept()  # or event.ignore() if there's a reason to stop the closure
+
 
 class StopRecordingDialog(QDialog):
     def __init__(self, confirm_stop_upload, confirm_stop_no_upload, parent=None):
