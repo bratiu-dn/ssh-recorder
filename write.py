@@ -1,6 +1,9 @@
 import os
 import shutil
+from datetime import datetime
+
 from jira import JIRA
+
 
 class SSHRecorder:
     """
@@ -103,9 +106,17 @@ class SSHRecorder:
         """
         Upload the recordings to Jira
         """
-
+        clean_script = "tr -d '\\000' < {0} | perl -0777 -pe 's/\\e\\[[0-9;?]*[nmlhHfGJKF]//g; s/.\\x08//g while /\\x08/' > {0}.txt"
         for f in [f for f in os.listdir(self.destination_path)]:
-            self.jira.add_attachment(issue=self.jira_ticket, attachment=f"{self.destination_path}{f}")
+            os.system(clean_script.format(f"{self.destination_path}{f}"))
+
+        # zip all the txt files
+        date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"{self.destination_path}{date}-logs.zip"
+        os.system(f"zip -j {filename} {self.destination_path}*.txt")
+
+        # atach the zip file to the jira ticket
+        self.jira.add_attachment(issue=self.jira_ticket, attachment=filename)
 
     def validate_jira_ticket(self, ticket_id):
         """
