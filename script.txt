@@ -9,15 +9,21 @@ function ssh() {
     is_interactive=1
     for arg in "$@"; do
         if [[ "$arg" == *"@"* ]]; then
-            if [[ -z "$log_file" ]]; then
-                log_file="$log_dir/${arg}_$(date +%Y%m%d%H%M%S).log"
-                continue
+            log_file="$log_dir/${arg}_$(date +%Y%m%d%H%M%S).log"
+            host_found=1
+            previous_arg_option=0
+        elif [[ $host_found -eq 1 ]]; then
+            if [[ "$arg" == -* ]]; then
+                # Current argument is an option
+                previous_arg_option=1
+            elif [[ $previous_arg_option -eq 1 ]]; then
+                # Current argument is a parameter for the previous option
+                previous_arg_option=0
+            else
+                # Found a non-option argument, assuming remote command
+                is_interactive=0
+                break
             fi
-        fi
-        if [[ "$arg" != -* ]]; then
-            # Found a non-option argument, assuming remote command
-            is_interactive=0
-            break
         fi
     done
 
