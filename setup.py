@@ -1,6 +1,6 @@
 from setuptools import setup
 
-APP = ['dn_recorder.py']
+APP = ['dn_recorder_ui.py']
 DATA_FILES = [
     ('', ['DN-Logo.png', 'script.txt'])
 ]
