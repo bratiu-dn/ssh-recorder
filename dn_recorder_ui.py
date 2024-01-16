@@ -3,25 +3,16 @@ import sys
 import qtawesome as qta
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, \
     QSpacerItem, QSizePolicy, QDialog
-from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QSize, Qt
+
+import subprocess
 
 from write import SSHRecorder
 
-style = """
-            QPushButton {
-                border: 2px solid #8f8f91;  /* Two pixels width black border */
-                background-color: #EEEEEE;  /* Change text color as needed */
-                border-style: outset;  /* Make it look like pressed */
-            }
-            QPushButton:hover {
-                background-color: #CCCCCC;  /* Slightly darker shade when hovered */
-            }
-            QPushButton:pressed {
-                background-color: #CCCCCC;  /* Even darker shade when pressed */
-                border-style: inset;  /* Make the border look inset */
-            }
-        """
+
+version = "1.1.0"
+date = "15-Jan-2024"
 
 
 class App(QWidget):
@@ -41,8 +32,7 @@ class App(QWidget):
     def initUI(self):
         self.setWindowTitle("SSH Recorder")
         self.setGeometry(100, 100, 350, 300)  # Adjust the size as needed
-        self.setFixedSize(420, 300)
-        self.setStyleSheet("background-color: white;")
+        self.setFixedSize(440, 300)
 
         # Create layout managers
         main_layout = QVBoxLayout()
@@ -58,7 +48,7 @@ class App(QWidget):
 
         # Title label
         title_label = QLabel("SSH Recorder", self)
-        title_label.setStyleSheet("color: blue; font-size: 30px;")
+        title_label.setStyleSheet("color: '#2050FF'; font-size: 30px; font-weight: bold;")
 
         # Add logo and title to the header layout
         header_layout.addWidget(logo_label)
@@ -67,7 +57,7 @@ class App(QWidget):
 
         # Jira ticket number entry
         entry_label = QLabel("Jira ticket number:", self)
-        entry_label.setStyleSheet("color: gray; font-size: 15px;")
+        entry_label.setStyleSheet("font-size: 15px;")
         self.text_entry = QLineEdit(self)
         self.text_entry.setStyleSheet("font-size: 15px;")
         self.text_entry.setMaximumWidth(150)
@@ -82,7 +72,6 @@ class App(QWidget):
         self.record_button = QPushButton(qta.icon('fa5s.record-vinyl', color='red'), '', self)
         self.record_button.setIconSize(QSize(25, 25))
         self.record_button.setFixedSize(40, 40)
-        self.record_button.setStyleSheet(style)
         self.record_button.clicked.connect(self.start_resume_recording)  # Uncomment when function is defined
         buttons_layout.addWidget(self.record_button)
 
@@ -90,7 +79,6 @@ class App(QWidget):
         self.pause_button = QPushButton(qta.icon('fa5s.pause', color='#FFC107'), '', self)
         self.pause_button.setIconSize(QSize(25, 25))
         self.pause_button.setFixedSize(40, 40)
-        self.pause_button.setStyleSheet(style)
         self.pause_button.setEnabled(False)
         self.pause_button.clicked.connect(self.pause_recording)  # Uncomment when function is defined
         buttons_layout.addWidget(self.pause_button)
@@ -99,7 +87,6 @@ class App(QWidget):
         self.stop_button = QPushButton(qta.icon('fa5s.stop', color='red'), '', self)
         self.stop_button.setIconSize(QSize(25, 25))
         self.stop_button.setFixedSize(40, 40)
-        self.stop_button.setStyleSheet(style)
         self.stop_button.setEnabled(False)
         self.stop_button.clicked.connect(self.stop_recording)  # Uncomment when function is defined
         buttons_layout.addWidget(self.stop_button)
@@ -109,13 +96,17 @@ class App(QWidget):
 
         # Status label
         self.status_label = QLabel("Status: Idle", self)
-        self.status_label.setStyleSheet("color: gray; font-size: 10px;")
+        self.status_label.setStyleSheet("font-size: 10px;")
         status_layout.addWidget(self.status_label)
+
+        # version label
+        version_label = QLabel(f"Version: {version}\nDate: {date}", self)
+        version_label.setStyleSheet("font-size: 10px;")
+        status_layout.addWidget(version_label)
 
         self.exit_button = QPushButton(qta.icon('fa5s.power-off', color='red'), '', self)
         self.exit_button.setIconSize(QSize(20, 20))
         self.exit_button.setFixedSize(30, 30)
-        self.exit_button.setStyleSheet(style)
         self.exit_button.clicked.connect(self.close)  # Uncomment when function is defined
         status_layout.addWidget(self.exit_button)
 
@@ -127,9 +118,10 @@ class App(QWidget):
 
         # Set the main layout to the window
         self.setLayout(main_layout)
-
         self.entry_callback()  # Disable record button by default
-
+        self.apply_dark()
+        self.repaint()
+        self.update()
         self.append_script_to_zshrc('script.txt')
 
     def entry_callback(self):
@@ -277,6 +269,78 @@ class App(QWidget):
         """
         # handle any cleanup here
         event.accept()  # or event.ignore() if there's a reason to stop the closure
+
+    @staticmethod
+    def apply_dark():
+        """
+        apply dark theme styles
+        """
+        button_style = """
+            QPushButton {{
+                border: 2px solid #8f8f91;
+                background-color: {background};  /* Darker background for dark theme */
+                color: white;  /* Light text for dark theme */
+                border-style: outset;
+            }}
+            QPushButton:hover {{
+                background-color: {foreground};
+            }}
+            QPushButton:pressed {{
+                background-color: {foreground};
+                border-style: inset;
+            }}
+        """
+        text_area_style = """
+            QLineEdit, QTextEdit{{
+                background-color: {background};
+                color: {foreground};
+                border: 1px solid #8f8f91;
+            }}
+        """
+        qlabel_style = """
+            QLabel {{
+                color: {foreground};
+            }}
+        """
+
+        main_window_style = "QWidget {{ background-color: {background}; }}"
+        theme = App.get_macos_theme()
+        if theme == 'Light':
+            # Dark theme styles
+            background = '#333333'  # Dark background color
+            foreground = '#EEEEEE'  # Light text color
+            button_background = '#555555'  # Darker background for dark theme
+            button_pushed = '#777777'
+
+        else:
+            # Light theme styles
+            background = '#FFFFFF'
+            foreground = '#707070'
+            button_background = '#EEEEEE'
+            button_pushed = '#CCCCCC'
+
+        text_area_style = text_area_style.format(background=background, foreground=foreground)
+        main_window_style = main_window_style.format(background=background)
+        button_style = button_style.format(background=button_background, foreground=button_pushed)
+        qlabel_style = qlabel_style.format(foreground=foreground)
+
+        # Apply the styles
+        combined_styles = main_window_style + text_area_style + button_style + qlabel_style
+        QApplication.instance().setStyleSheet(combined_styles)
+
+    @staticmethod
+    def get_macos_theme():
+        try:
+            theme = subprocess.check_output(
+                ['defaults', 'read', '-g', 'AppleInterfaceStyle'],
+                text=True
+            ).strip()
+        except subprocess.CalledProcessError:
+            # The command above will raise an error if the theme is set to light,
+            # as the 'AppleInterfaceStyle' key will not exist.
+            theme = 'Light'
+
+        return theme  # Will return 'Dark' or 'Light'
 
 
 class StopRecordingDialog(QDialog):
