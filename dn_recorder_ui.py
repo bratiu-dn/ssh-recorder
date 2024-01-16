@@ -305,7 +305,7 @@ class App(QWidget):
 
         main_window_style = "QWidget {{ background-color: {background}; }}"
         theme = App.get_macos_theme()
-        if theme == 'Light':
+        if theme == 'Dark':
             # Dark theme styles
             background = '#333333'  # Dark background color
             foreground = '#EEEEEE'  # Light text color
