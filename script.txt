@@ -2,28 +2,40 @@ function ssh() {
     log_dir="/tmp/ssh_logs"
     mkdir -p "$log_dir"
 
-    # Initialize log_file
+    # Initialize variables
     log_file=""
-
-    # Determine if it's an interactive session or a remote command
+    host=""
+    user=""
+    host_found=0
+    previous_arg_option=0
     is_interactive=1
+
+    # Parse arguments
     for arg in "$@"; do
         if [[ "$arg" == *"@"* ]]; then
-            log_file="$log_dir/${arg}_$(date +%Y%m%d%H%M%S).log"
+            user=${arg%@*}
+            host=${arg#*@}
             host_found=1
+            log_file="$log_dir/${arg}_$(date +%Y%m%d%H%M%S).log"
+        elif [[ "$arg" == "-l" ]]; then
+            previous_arg_option=1
+        elif [[ $previous_arg_option -eq 1 ]]; then
+            user=$arg
             previous_arg_option=0
-        elif [[ $host_found -eq 1 ]]; then
-            if [[ "$arg" == -* ]]; then
-                # Current argument is an option
-                previous_arg_option=1
-            elif [[ $previous_arg_option -eq 1 ]]; then
-                # Current argument is a parameter for the previous option
-                previous_arg_option=0
-            else
-                # Found a non-option argument, assuming remote command
-                is_interactive=0
-                break
+            if [[ -n "$host" ]]; then
+                log_file="$log_dir/${user}@${host}_$(date +%Y%m%d%H%M%S).log"
             fi
+        elif [[ $host_found -eq 0 ]]; then
+            host=$arg
+            host_found=1
+            if [[ -z "$user" ]]; then
+                log_file="$log_dir/${host}_$(date +%Y%m%d%H%M%S).log"
+            else
+                log_file="$log_dir/${user}@${host}_$(date +%Y%m%d%H%M%S).log"
+            fi
+        elif [[ "$arg" != -* ]]; then
+            is_interactive=0
+            break
         fi
     done
 
@@ -33,13 +45,14 @@ function ssh() {
         return 1
     fi
 
+    # Execute the SSH command based on the session type
     if [[ $is_interactive -eq 1 ]]; then
         # Interactive SSH session
         echo "Starting SSH session to $@ at $(date)" >> "$log_file"
-        script -q -F "$log_file" /bin/zsh -c "/usr/bin/ssh $@"
+        script -q -F "$log_file" /bin/zsh -c "ssh $*"
         echo "SSH session to $@ ended at $(date)" >> "$log_file"
     else
         # Remote command execution
-        /usr/bin/ssh "$@"
+        /usr/bin/ssh "$@" | tee -a "$log_file"
     fi
 }

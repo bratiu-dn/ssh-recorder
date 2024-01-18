@@ -11,8 +11,8 @@ import subprocess
 from write import SSHRecorder
 
 
-version = "1.1.0"
-date = "15-Jan-2024"
+version = "1.2.0"
+date = "18-Jan-2024"
 
 
 class App(QWidget):
