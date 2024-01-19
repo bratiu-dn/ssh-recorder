@@ -11,8 +11,8 @@ import subprocess
 from write import SSHRecorder
 
 
-version = "1.2.0"
-date = "18-Jan-2024"
+version = "1.3.0"
+date = "19-Jan-2024"
 
 
 class App(QWidget):
@@ -279,7 +279,7 @@ class App(QWidget):
             QPushButton {{
                 border: 2px solid #8f8f91;
                 background-color: {background};  /* Darker background for dark theme */
-                color: white;  /* Light text for dark theme */
+                color: {button_text_color};  /* Light text for dark theme */
                 border-style: outset;
             }}
             QPushButton:hover {{
@@ -311,6 +311,7 @@ class App(QWidget):
             foreground = '#EEEEEE'  # Light text color
             button_background = '#555555'  # Darker background for dark theme
             button_pushed = '#777777'
+            button_text_color = '#EEEEEE'  # Light text for dark theme
 
         else:
             # Light theme styles
@@ -318,10 +319,12 @@ class App(QWidget):
             foreground = '#707070'
             button_background = '#EEEEEE'
             button_pushed = '#CCCCCC'
+            button_text_color = '#333333'
 
         text_area_style = text_area_style.format(background=background, foreground=foreground)
         main_window_style = main_window_style.format(background=background)
-        button_style = button_style.format(background=button_background, foreground=button_pushed)
+        button_style = button_style.format(background=button_background, foreground=button_pushed,
+                                           button_text_color=button_text_color)
         qlabel_style = qlabel_style.format(foreground=foreground)
 
         # Apply the styles
@@ -378,6 +381,7 @@ class StopRecordingDialog(QDialog):
 
         # Set dialog modality
         self.setModal(True)
+        App.apply_dark()
 
 
 if __name__ == '__main__':
