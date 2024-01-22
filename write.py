@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 from datetime import datetime
 
 from jira import JIRA
@@ -123,6 +124,7 @@ class SSHRecorder:
                 break
             except:
                 print(f"Failed to upload the file to Jira, retrying {i}/{retires}")
+                time.sleep(5)
                 continue
         else:
             print(f"Failed to upload the file to Jira after {retires} retries")
