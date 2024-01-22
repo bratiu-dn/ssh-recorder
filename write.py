@@ -31,6 +31,7 @@ class SSHRecorder:
         :return: the jira object
         """
         if self._jira is None:
+            print("Creating Jira connection")
             USERNAME = 'dn-jira-auto01'
             PASSWORD = 'PGIs3QjCuouxFcbtUvaf27A1'
 
@@ -64,6 +65,9 @@ class SSHRecorder:
         for file in os.listdir(self.source_path):
             if file.endswith(".log"):
                 self._existing_sessions.append(file)
+        print("Resetting Jira connection")
+        self.jira.close()
+        self._jira = None
 
     def pause_recording(self):
         """

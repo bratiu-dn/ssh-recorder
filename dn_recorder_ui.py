@@ -11,7 +11,7 @@ import subprocess
 from write import SSHRecorder
 
 
-version = "1.3.1"
+version = "1.3.2"
 date = "22-Jan-2024"
 
 
