@@ -1,14 +1,17 @@
+import datetime
 import os
 import sys
+import traceback
+
 import qtawesome as qta
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QLineEdit, QLabel, \
     QSpacerItem, QSizePolicy, QDialog
 from PyQt5.QtGui import QPixmap
-from PyQt5.QtCore import QSize, Qt
+from PyQt5.QtCore import QSize, Qt, QCoreApplication
 
 import subprocess
 
-from write import SSHRecorder
+from write import SSHRecorder, SOURCE_PATH
 
 
 version = "1.3.2"
@@ -178,7 +181,7 @@ class App(QWidget):
         :return:
         """
         # Create a custom dialog
-        self.dialog = StopRecordingDialog(self.confirm_stop_upload, self.confirm_stop_no_upload, self)
+        self.dialog = StopRecordingDialog(self)
         self.dialog.exec_()  # This will run the dialog in modal form
 
     def confirm_stop_upload(self):
@@ -347,7 +350,7 @@ class App(QWidget):
 
 
 class StopRecordingDialog(QDialog):
-    def __init__(self, confirm_stop_upload, confirm_stop_no_upload, parent=None):
+    def __init__(self, parent):
         super().__init__(parent)
         self.setWindowTitle("Stop Recording")
 
@@ -363,12 +366,12 @@ class StopRecordingDialog(QDialog):
 
         # Button for "Stop and Upload to Jira"
         upload_button = QPushButton("Stop and Upload to Jira")
-        upload_button.clicked.connect(confirm_stop_upload)
+        upload_button.clicked.connect(parent.confirm_stop_upload)
         buttons_layout.addWidget(upload_button)
 
         # Button for "Stop but Don't Upload"
         no_upload_button = QPushButton("Stop but Don't Upload")
-        no_upload_button.clicked.connect(confirm_stop_no_upload)
+        no_upload_button.clicked.connect(parent.confirm_stop_no_upload)
         buttons_layout.addWidget(no_upload_button)
 
         # Button for "Cancel"
@@ -384,8 +387,58 @@ class StopRecordingDialog(QDialog):
         App.apply_dark()
 
 
+class CrashDialog(QDialog):
+    """
+    This dialog shows up when a crash occurs
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Crash Detected")
+
+        # Set up the layout
+        layout = QVBoxLayout(self)
+
+        # Add dialog message
+        label = QLabel(f"Unfortunately a crash happened. \nA log file was created in {SOURCE_PATH}err_log.txt\n Please send it to the developer.")
+        layout.addWidget(label)
+
+        # Set up the buttons
+        buttons_layout = QHBoxLayout()
+
+        # Button for "Stop and Upload to Jira"
+        crash_button = QPushButton("OK")
+        crash_button.clicked.connect(self.close)
+        buttons_layout.addWidget(crash_button)
+
+        # Add the buttons layout to the main layout
+        layout.addLayout(buttons_layout)
+
+        # Set dialog modality
+        self.setModal(True)
+        App.apply_dark()
+
+
+def log_uncaught_exceptions(ex_cls, ex, tb):
+    """
+    log uncaught exceptions
+    :param ex_cls: Exception class
+    :param ex: Exception
+    :param tb: traceback
+    """
+    error_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(f"{SOURCE_PATH}error_log.txt", "w") as log_file:
+        log_file.write(f"\n{error_time} - Uncaught Exception:\n")
+        log_file.write(f"{ex_cls.__name__}: {ex}\n")
+        traceback.print_tb(tb, file=log_file)
+
+        dialog = CrashDialog(exx)
+        dialog.exec_()
+    QCoreApplication.quit()
+
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = App()
-    ex.show()
+    exx = App()
+    sys.excepthook = log_uncaught_exceptions
+    exx.show()
     sys.exit(app.exec_())

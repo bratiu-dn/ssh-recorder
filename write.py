@@ -2,8 +2,11 @@ import os
 import shutil
 import time
 from datetime import datetime
+from contextlib import contextmanager
 
 from jira import JIRA
+
+SOURCE_PATH = "/tmp/ssh_logs/"
 
 
 class SSHRecorder:
@@ -16,7 +19,7 @@ class SSHRecorder:
         initialize the SSHRecorder
         """
         self.sessions = []
-        self.source_path = "/tmp/ssh_logs/"
+        self.source_path = SOURCE_PATH
         self.destination_path = ""
         self.jira_ticket = None
         self._existing_sessions = []
@@ -24,23 +27,27 @@ class SSHRecorder:
         self._paused = False
         self._jira = None
 
-    @property
+    @contextmanager
     def jira(self):
         """
         get the jira object
         :return: the jira object
         """
-        if self._jira is None:
-            print("Creating Jira connection")
-            USERNAME = 'dn-jira-auto01'
-            PASSWORD = 'PGIs3QjCuouxFcbtUvaf27A1'
+        print("Creating Jira connection")
+        USERNAME = 'dn-jira-auto01'
+        PASSWORD = 'PGIs3QjCuouxFcbtUvaf27A1'
 
-            jira_options = {
-                'server': "https://drivenets.atlassian.net/",
-            }
+        jira_options = {
+            'server': "https://drivenets.atlassian.net/",
+        }
 
-            self._jira = JIRA(options=jira_options, basic_auth=(USERNAME + '@drivenets.com', PASSWORD))
-        return self._jira
+        self._jira = JIRA(options=jira_options, basic_auth=(USERNAME + '@drivenets.com', PASSWORD))
+
+        yield self._jira
+
+        print("Closing Jira connection")
+        self._jira.close()
+        self._jira = None
 
     def set_jira_ticket(self, jira_ticket):
         """
@@ -65,9 +72,6 @@ class SSHRecorder:
         for file in os.listdir(self.source_path):
             if file.endswith(".log"):
                 self._existing_sessions.append(file)
-        print("Resetting Jira connection")
-        self.jira.close()
-        self._jira = None
 
     def pause_recording(self):
         """
@@ -121,14 +125,15 @@ class SSHRecorder:
         os.system(f"zip -j {filename} {self.destination_path}*.txt")
 
         # attach the zip file to the jira ticket
-        retires = 5
+        retires = 3
         for i in range(1, retires + 1):
             try:
-                self.jira.add_attachment(issue=self.jira_ticket, attachment=filename)
-                break
+                with self.jira() as jira:
+                    jira.add_attachment(issue=self.jira_ticket, attachment=filename)
+                    break
             except:
                 print(f"Failed to upload the file to Jira, retrying {i}/{retires}")
-                time.sleep(5)
+                time.sleep(1)
                 continue
         else:
             print(f"Failed to upload the file to Jira after {retires} retries")
@@ -139,9 +144,10 @@ class SSHRecorder:
         Validate the Jira ticket
         """
         try:
-            self.jira.issue(ticket_id)
-            self.set_jira_ticket(ticket_id)
-            return True
+            with self.jira() as jira:
+                jira.issue(ticket_id)
+                self.set_jira_ticket(ticket_id)
+                return True
         except:
             return False
 
