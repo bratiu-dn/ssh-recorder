@@ -14,7 +14,7 @@ import subprocess
 from write import SSHRecorder, SOURCE_PATH
 
 
-version = "1.4.0"
+version = "1.4.1"
 date = "23-Jan-2024"
 
 
@@ -431,8 +431,8 @@ def log_uncaught_exceptions(ex_cls, ex, tb):
         log_file.write(f"{ex_cls.__name__}: {ex}\n")
         traceback.print_tb(tb, file=log_file)
 
-        dialog = CrashDialog(exx)
-        dialog.exec_()
+    dialog = CrashDialog(exx)
+    dialog.exec_()
     QCoreApplication.quit()
 
 
