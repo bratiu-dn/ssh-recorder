@@ -125,19 +125,22 @@ class SSHRecorder:
         os.system(f"zip -j {filename} {self.destination_path}*.txt")
 
         # attach the zip file to the jira ticket
-        retires = 3
-        for i in range(1, retires + 1):
+        retries = 3
+        exception = None
+        for i in range(1, retries + 1):
             try:
                 with self.jira() as jira:
                     jira.add_attachment(issue=self.jira_ticket, attachment=filename)
                     break
-            except:
-                print(f"Failed to upload the file to Jira, retrying {i}/{retires}")
+            except Exception as e:
+                print(f"Failed to upload the file to Jira, retrying {i}/{retries}")
+                exception = e
                 time.sleep(1)
                 continue
         else:
-            print(f"Failed to upload the file to Jira after {retires} retries")
-            raise Exception(f"Failed to upload the file to Jira after {retires} retries")
+            print(f"Failed to upload the file to Jira after {retries} retries")
+            if exception:
+                raise exception  # Re-raise the original exception
 
     def validate_jira_ticket(self, ticket_id):
         """
