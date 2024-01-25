@@ -86,8 +86,8 @@ class SSHRecorder:
         print(f"new sessions: {self._new_sessions}")
         for session in self._new_sessions:
             # copy the contents on top of the original file
-            with open(f"{self.source_path}{session}", 'r') as source_file:
-                with open(f"{self.destination_path}{session}", 'a') as destination_file:
+            with open(f"{self.source_path}{session}", 'r', encoding='utf-8') as source_file:
+                with open(f"{self.destination_path}{session}", 'a', encoding='utf-8') as destination_file:
                     destination_file.write(source_file.read())
 
     def resume_recording(self):
