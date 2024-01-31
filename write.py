@@ -114,8 +114,12 @@ class SSHRecorder:
     def upload_to_jira(self):
         """
         Upload the recordings to Jira
+        :return name of the file uploaded or None if nothing was uploaded
         """
         clean_script = "tr -d '\\000' < {0} | perl -0777 -pe 's/\\e\\[[0-9;?]*[nmlhHfGJKF]//g; s/.\\x08//g while /\\x08/' > {0}.txt"
+        # do nothing if there are no files to upload
+        if not self._new_sessions:
+            return
         for f in [f for f in os.listdir(self.destination_path)]:
             os.system(clean_script.format(f"{self.destination_path}{f}"))
 
@@ -141,7 +145,7 @@ class SSHRecorder:
             print(f"Failed to upload the file to Jira after {retries} retries")
             if exception:
                 raise exception  # Re-raise the original exception
-
+        return filename
     def validate_jira_ticket(self, ticket_id):
         """
         Validate the Jira ticket
