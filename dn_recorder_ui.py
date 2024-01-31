@@ -14,8 +14,8 @@ import subprocess
 from write import SSHRecorder, SOURCE_PATH
 
 
-version = "1.4.2"
-date = "25-Jan-2024"
+version = "1.4.3"
+date = "31-Jan-2024"
 
 
 class App(QWidget):
@@ -191,8 +191,14 @@ class App(QWidget):
         """
         # upload to jira
         self.close_helper()
-        self.recorder.upload_to_jira()
+        result = self.recorder.upload_to_jira()
+        if result:
+            self.status_label.setText("Status: Upload successful")
+        else:
+            self.status_label.setText("Status: Nothing to upload")
         self._recorder = None
+        self.record_button.setEnabled(False)
+        self.text_entry.setText("")
 
     def confirm_stop_no_upload(self):
         """
@@ -201,6 +207,8 @@ class App(QWidget):
         """
         self.close_helper()
         self._recorder = None
+        self.record_button.setEnabled(True)
+        self.status_label.setText("Status: Nothing to upload")
 
     def close_helper(self):
         """
@@ -209,12 +217,9 @@ class App(QWidget):
         """
         self.recording_started = False
         self.recorder.stop_recording()
-        self.record_button.setEnabled(False)
         self.pause_button.setEnabled(False)
         self.stop_button.setEnabled(False)
         self.text_entry.setEnabled(True)
-        self.status_label.setText("Status: Idle")
-        self.text_entry.setText("")
         self.dialog.accept()
 
     @staticmethod
