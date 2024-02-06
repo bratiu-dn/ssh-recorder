@@ -84,11 +84,19 @@ class SSHRecorder:
         self._paused = True
         self._new_sessions = [f for f in os.listdir(self.source_path) if f.endswith(".log") and f not in self._existing_sessions]
         print(f"new sessions: {self._new_sessions}")
-        for session in self._new_sessions:
-            # copy the contents on top of the original file
-            with open(f"{self.source_path}{session}", 'r', encoding='utf-8') as source_file:
-                with open(f"{self.destination_path}{session}", 'a', encoding='utf-8') as destination_file:
-                    destination_file.write(source_file.read())
+        for session in self._new_sessions[:]:
+            try:
+                # copy the contents on top of the original file
+                with open(f"{self.source_path}{session}", 'r', encoding='utf-8') as source_file:
+                    with open(f"{self.destination_path}{session}", 'a', encoding='utf-8') as destination_file:
+                        destination_file.write(source_file.read())
+            except UnicodeDecodeError:
+                print(f"Failed to decode the file {session}, so skipping it")
+                # check if the file is zero bytes, remove it
+                if os.path.getsize(f"{self.destination_path}{session}") == 0:
+                    print("removing the file")
+                    os.remove(f"{self.destination_path}{session}")
+                    self._new_sessions.remove(session)
 
     def resume_recording(self):
         """
@@ -146,6 +154,7 @@ class SSHRecorder:
             if exception:
                 raise exception  # Re-raise the original exception
         return filename
+
     def validate_jira_ticket(self, ticket_id):
         """
         Validate the Jira ticket
