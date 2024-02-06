@@ -14,8 +14,8 @@ import subprocess
 from write import SSHRecorder, SOURCE_PATH
 
 
-version = "1.4.3"
-date = "31-Jan-2024"
+version = "1.4.4"
+date = "6-Feb-2024"
 
 
 class App(QWidget):
