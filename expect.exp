@@ -1,0 +1,80 @@
+#!/usr/bin/expect -f
+
+# Set variables
+set timeout 30
+set max_attempts 3
+set attempt 0
+set show_command "show system | no-more"
+set logging_command "set logging terminal"
+set user [lindex $argv 0]
+set host [lindex $argv 1]
+set passwordFile [lindex $argv 2]
+proc prompt_for_password {user host} {
+    stty -echo
+    send_user "Password for $user@$host: "
+    expect_user -re "(.*)\n"
+    set password $expect_out(1,string)
+    stty echo
+    send_user "\n"
+    return $password
+}
+
+# Password attempt loop
+for {set attempt 1} {$attempt <= $max_attempts} {incr attempt} {
+
+    # Prompt for password
+    set password [prompt_for_password $user $host]
+
+    # Save the password to a file
+    set fp [open $passwordFile w]
+    puts $fp $password
+    close $fp
+
+    # Start SSH session
+    spawn ssh -oStrictHostKeyChecking=no $user@$host
+    # Handle password prompt
+    expect {
+        "*?assword:*" {
+            send "$password\r"
+            expect {
+                "*?assword:*" {
+                    send_user "Incorrect password, please try again.\n"
+                }
+                "*#" {
+                    break
+                }
+
+                default {
+                    send_user "Unexpected output, exiting.\n"
+                    exit
+    }
+            }
+        }
+        default {
+            exit
+        }
+        timeout {
+            send_user "Connection timed out. Please try again.\n"
+            break
+        }
+    }
+
+    # Exit loop if successful
+    if { [regexp {.*#} $expect_out(buffer)] } {
+        break
+    } elseif { $attempt == $max_attempts } {
+        send_user "Maximum password attempts reached. Exiting.\n"
+        exit
+    }
+}
+
+
+
+# Send the command
+send "$show_command\r"
+expect "*#"
+send "$logging_command\r"
+expect "*#"
+
+# Interact
+interact
