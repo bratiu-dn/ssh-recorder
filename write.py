@@ -127,14 +127,14 @@ class SSHRecorder:
         :return:
         """
         print("calling show system end on all devices")
-        devices = [session for session in self._new_sessions if 'dn' in session and 'pass' not in session]
+        devices = [session for session in self._new_sessions if '_dn_' in session and 'pass' not in session]
         if not devices:
             return
         for device in devices:
             print(f"Calling show system end on {device}")
             userhost = device.split("_")[0]
             user, host = userhost.split("@")
-            with open(f'{self.destination_path}/pass_{device}') as fp:
+            with open(f'{self.destination_path}pass_{device}') as fp:
                 password = fp.read().rstrip()
 
             # Command to execute

@@ -14,8 +14,8 @@ import subprocess
 from write import SSHRecorder, SOURCE_PATH
 
 
-version = "1.4.4"
-date = "6-Feb-2024"
+version = "1.5.1"
+date = "16-Feb-2024"
 
 
 class App(QWidget):
@@ -229,10 +229,15 @@ class App(QWidget):
                                      make_exec=False):
         # Expand the user's home directory (~)
         remote_path = os.path.expanduser(remote_path)
-        start_marker = ""
-        if not make_exec:
+
+        if make_exec:
+            # expect script
+            start_marker = "#!/usr/bin/expect -f\n"
+            end_marker = "# end of expect script\n"
+        else:
+            # zsh script
             start_marker = "# Appended script\n"
-        end_marker = "# End appended script\n"
+            end_marker = "# End appended script\n"
 
         try:
             # Read the script from the file
