@@ -57,7 +57,7 @@ function ssh() {
     fi
 }
 
-function ssh_dn() {
+function ssh_show() {
     log_dir="/tmp/ssh_logs"
     mkdir -p "$log_dir"
 
@@ -76,7 +76,7 @@ function ssh_dn() {
             host=${arg#*@}
             host_found=1
             log_file="$log_dir/${arg}_dn_$(date +%Y%m%d%H%M%S).log"
-	    pass_file="$log_dir/pass_${arg}_dn_$(date +%Y%m%d%H%M%S).log"
+            pass_file="$log_dir/pass_${arg}_dn_$(date +%Y%m%d%H%M%S).log"
         elif [[ "$arg" == "-l" ]]; then
             previous_arg_option=1
         elif [[ $previous_arg_option -eq 1 ]]; then
