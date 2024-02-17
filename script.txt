@@ -56,3 +56,63 @@ function ssh() {
         /usr/bin/ssh "$@" | tee -a "$log_file"
     fi
 }
+
+function ssh_dn() {
+    log_dir="/tmp/ssh_logs"
+    mkdir -p "$log_dir"
+
+    # Initialize variables
+    log_file=""
+    host=""
+    user=""
+    host_found=0
+    previous_arg_option=0
+    is_interactive=1
+
+    # Parse arguments
+    for arg in "$@"; do
+        if [[ "$arg" == *"@"* ]]; then
+            user=${arg%@*}
+            host=${arg#*@}
+            host_found=1
+            log_file="$log_dir/${arg}_dn_$(date +%Y%m%d%H%M%S).log"
+	    pass_file="$log_dir/pass_${arg}_dn_$(date +%Y%m%d%H%M%S).log"
+        elif [[ "$arg" == "-l" ]]; then
+            previous_arg_option=1
+        elif [[ $previous_arg_option -eq 1 ]]; then
+            user=$arg
+            previous_arg_option=0
+            if [[ -n "$host" ]]; then
+                log_file="$log_dir/${user}@${host}_$(date +%Y%m%d%H%M%S).log"
+            fi
+        elif [[ $host_found -eq 0 ]]; then
+            host=$arg
+            host_found=1
+            if [[ -z "$user" ]]; then
+                log_file="$log_dir/${host}_$(date +%Y%m%d%H%M%S).log"
+            else
+                log_file="$log_dir/${user}@${host}_$(date +%Y%m%d%H%M%S).log"
+            fi
+        elif [[ "$arg" != -* ]]; then
+            is_interactive=0
+            break
+        fi
+    done
+
+    # Check if log_file is defined
+    if [[ -z "$log_file" ]]; then
+        echo "Error: Log file not defined."
+        return 1
+    fi
+
+    # Execute the SSH command based on the session type
+    if [[ $is_interactive -eq 1 ]]; then
+        # Interactive SSH session
+        echo "Starting SSH session to $@ at $(date)" >> "$log_file"
+        script -q -F "$log_file" /bin/zsh -c "~/expect.exp $user $host $pass_file"
+        echo "SSH session to $@ ended at $(date)" >> "$log_file"
+    else
+        # Remote command execution
+        /usr/bin/ssh "$@" | tee -a "$log_file"
+    fi
+}

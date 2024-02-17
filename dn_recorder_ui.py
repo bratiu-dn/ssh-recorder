@@ -125,7 +125,9 @@ class App(QWidget):
         self.apply_dark()
         self.repaint()
         self.update()
-        self.append_script_to_zshrc('script.txt')
+        self.append_script_to_remote_path('script.txt')
+        self.append_script_to_remote_path('expect.exp', remote_path='~/expect.exp', quit_iterm=False,
+                                          make_exec=True)
 
     def entry_callback(self):
         text = self.text_entry.text().strip()
@@ -223,10 +225,13 @@ class App(QWidget):
         self.dialog.accept()
 
     @staticmethod
-    def append_script_to_zshrc(script_file_path, zshrc_path='~/.zshrc'):
+    def append_script_to_remote_path(script_file_path, remote_path='~/.zshrc', quit_iterm=True,
+                                     make_exec=False):
         # Expand the user's home directory (~)
-        zshrc_path = os.path.expanduser(zshrc_path)
-        start_marker = "# Appended script\n"
+        remote_path = os.path.expanduser(remote_path)
+        start_marker = ""
+        if not make_exec:
+            start_marker = "# Appended script\n"
         end_marker = "# End appended script\n"
 
         try:
@@ -234,40 +239,42 @@ class App(QWidget):
             with open(script_file_path, 'r') as script_file:
                 script_content = script_file.read()
 
-            # Read the existing .zshrc content
-            if os.path.isfile(zshrc_path):
-                with open(zshrc_path, 'r') as zshrc_file:
-                    zshrc_content = zshrc_file.readlines()
-                    if script_content in "".join(zshrc_content):
-                        return  # Script already exists in ~/.zshrc
+            # Read the existing remote script content
+            if os.path.isfile(remote_path):
+                with open(remote_path, 'r') as remote_script:
+                    remote_content = remote_script.readlines()
+                    if script_content in "".join(remote_content):
+                        return  # Script already exists in remote path
             else:
-                zshrc_content = []
+                remote_content = []
 
             # Remove old script content if it exists
             start_index = None
             end_index = None
-            for i, line in enumerate(zshrc_content):
+            for i, line in enumerate(remote_content):
                 if start_marker in line:
                     start_index = i
                 elif end_marker in line:
                     end_index = i + 1
                     break
             if start_index is not None:
-                del zshrc_content[start_index:end_index]
+                del remote_content[start_index:end_index]
 
             # Append new script content
-            with open(zshrc_path, 'w') as zshrc_file:
-                zshrc_file.writelines(zshrc_content)
-                zshrc_file.write(start_marker)
-                zshrc_file.write(script_content)
-                zshrc_file.write('\n')
-                zshrc_file.write(end_marker)
+            with open(remote_path, 'w') as remote_script:
+                remote_script.writelines(remote_content)
+                remote_script.write(start_marker)
+                remote_script.write(script_content)
+                remote_script.write('\n')
+                remote_script.write(end_marker)
 
-            print("Script updated successfully in ~/.zshrc")
-            os.system("osascript -e 'tell application \"iTerm\" to quit without saving'")
-
+            print(f"Script updated successfully in {remote_path}")
+            if quit_iterm:
+                os.system("osascript -e 'tell application \"iTerm\" to quit without saving'")
+            if make_exec:
+                os.chmod(remote_path, 0o755)
         except Exception as e:
-            print(f"Error updating script in ~/.zshrc: {e}")
+            print(f"Error updating script in {remote_path}: {e}")
 
     def closeEvent(self, event):
         """

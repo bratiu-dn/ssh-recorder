@@ -1,8 +1,10 @@
 import os
 import shutil
+import subprocess
 import time
 from datetime import datetime
 from contextlib import contextmanager
+import paramiko
 
 from jira import JIRA
 
@@ -119,22 +121,90 @@ class SSHRecorder:
             self.pause_recording()
         print(f"Here is the list of files that were recorded: {self._new_sessions}")
 
-    def upload_to_jira(self):
+    def call_show_system_end(self):
+        """
+        Call the show system end on all the devices
+        :return:
+        """
+        print("calling show system end on all devices")
+        devices = [session for session in self._new_sessions if 'dn' in session and 'pass' not in session]
+        if not devices:
+            return
+        for device in devices:
+            print(f"Calling show system end on {device}")
+            userhost = device.split("_")[0]
+            user, host = userhost.split("@")
+            with open(f'{self.destination_path}/pass_{device}') as fp:
+                password = fp.read().rstrip()
+
+            # Command to execute
+            command = 'show system | no-more'
+
+            # Create an SSH client instance
+            client = paramiko.SSHClient()
+
+            # Automatically add untrusted hosts (make sure okay for security policy)
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+            try:
+                client.connect(host, 22, user, password, timeout=60, banner_timeout=60)
+                client._transport.window_size = 2147483647
+                # Invoke an interactive shell session
+                shell = client.invoke_shell(width=1500, height=1000)
+                time.sleep(15)  # Wait a bit for the initial prompt
+                # Clear any welcome messages or prompts
+                if shell.recv_ready():
+                    shell.recv(65535)
+                # Send the command
+                shell.send(command + "\n")
+                time.sleep(5)  # Adjust this sleep time as necessary to allow command execution
+                # Capture the command output
+                output = ""
+                while shell.recv_ready():
+                    buffer = shell.recv(65535)
+                    output += buffer.decode('utf-8')
+                    time.sleep(1)  # Adjust as necessary based on testing
+
+                print("\nGot show system\n\n\n")
+                print(output)
+
+                with open(f"{self.destination_path}/{device}", "a") as f:
+                    f.write("# Final show system\n")
+                    f.write(output)
+            except Exception as e:
+                print(f"Failed to call show system end on {device} due to {e}")
+                continue
+            finally:
+                # Close the SSH connection
+                client.close()
+
+    def upload_to_jira(self, show_system=False):
         """
         Upload the recordings to Jira
         :return name of the file uploaded or None if nothing was uploaded
         """
+
         clean_script = "tr -d '\\000' < {0} | perl -0777 -pe 's/\\e\\[[0-9;?]*[nmlhHfGJKF]//g; s/.\\x08//g while /\\x08/' > {0}.txt"
         # do nothing if there are no files to upload
         if not self._new_sessions:
             return
-        for f in [f for f in os.listdir(self.destination_path)]:
+
+        if not show_system:
+            # need to call the show system on all devices before uploading the logs
+            self.call_show_system_end()
+        all_files = [f for f in os.listdir(self.destination_path)]
+        for f in all_files:
             os.system(clean_script.format(f"{self.destination_path}{f}"))
+        # Update the list of files to include the new txt files
+        all_files = [f for f in os.listdir(self.destination_path)]
+        # Filter files to exclude any that contain "pass" in their name and are .txt files
+        files_to_zip = [file for file in all_files if "pass" not in file and file.endswith('.txt')]
+        files_to_zip_str = " ".join(f'"{self.destination_path}{file}"' for file in files_to_zip)
 
         # zip all the txt files
         date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         filename = f"{self.destination_path}{date}-logs.zip"
-        os.system(f"zip -j {filename} {self.destination_path}*.txt")
+        os.system(f"zip -j {filename} {files_to_zip_str}")
 
         # attach the zip file to the jira ticket
         retries = 3
