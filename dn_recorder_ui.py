@@ -8,14 +8,14 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QHB
     QSpacerItem, QSizePolicy, QDialog
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import QSize, Qt, QCoreApplication
-
+import logging
 import subprocess
-
+from log_config import setup_logging
 from write import SSHRecorder, SOURCE_PATH
 
 
-version = "1.5.1"
-date = "16-Feb-2024"
+version = "1.6.0"
+date = "28-Feb-2024"
 
 
 class App(QWidget):
@@ -273,13 +273,13 @@ class App(QWidget):
                 remote_script.write('\n')
                 remote_script.write(end_marker)
 
-            print(f"Script updated successfully in {remote_path}")
+            logging.info(f"Script updated successfully in {remote_path}")
             if quit_iterm:
                 os.system("osascript -e 'tell application \"iTerm\" to quit without saving'")
             if make_exec:
                 os.chmod(remote_path, 0o755)
         except Exception as e:
-            print(f"Error updating script in {remote_path}: {e}")
+            logging.error(f"Error updating script in {remote_path}: {e}")
 
     def closeEvent(self, event):
         """
@@ -454,6 +454,7 @@ def log_uncaught_exceptions(ex_cls, ex, tb):
 
 
 if __name__ == '__main__':
+    setup_logging()
     app = QApplication(sys.argv)
     exx = App()
     sys.excepthook = log_uncaught_exceptions

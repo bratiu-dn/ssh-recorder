@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 from contextlib import contextmanager
 import paramiko
-
+import logging
 from jira import JIRA
 
 SOURCE_PATH = "/tmp/ssh_logs/"
@@ -35,7 +35,7 @@ class SSHRecorder:
         get the jira object
         :return: the jira object
         """
-        print("Creating Jira connection")
+        logging.info("Creating Jira connection")
         USERNAME = 'dn-jira-auto01'
         PASSWORD = 'PGIs3QjCuouxFcbtUvaf27A1'
 
@@ -47,7 +47,7 @@ class SSHRecorder:
 
         yield self._jira
 
-        print("Closing Jira connection")
+        logging.info("Closing Jira connection")
         self._jira.close()
         self._jira = None
 
@@ -63,14 +63,14 @@ class SSHRecorder:
         start recording the SSH session
         :return:
         """
-        print("creating the destination dir")
+        logging.info("creating the destination dir")
 
         self.destination_path = f"{self.source_path}{self.jira_ticket}/"
         shutil.rmtree(self.destination_path, ignore_errors=True)
         os.makedirs(self.destination_path)
 
-        print("start recording!")
-        print("get the existing files to ignore them")
+        logging.info("start recording!")
+        logging.debug("get the existing files to ignore them")
         for file in os.listdir(self.source_path):
             if file.endswith(".log"):
                 self._existing_sessions.append(file)
@@ -80,12 +80,12 @@ class SSHRecorder:
         pause recording the SSH session
         :return:
         """
-        print("pause recording!")
-        print("getting the list of new files")
+        logging.info("pause recording!")
+        logging.debug("getting the list of new files")
 
         self._paused = True
         self._new_sessions = [f for f in os.listdir(self.source_path) if f.endswith(".log") and f not in self._existing_sessions]
-        print(f"new sessions: {self._new_sessions}")
+        logging.debug(f"new sessions: {self._new_sessions}")
         for session in self._new_sessions[:]:
             try:
                 # copy the contents on top of the original file
@@ -93,10 +93,10 @@ class SSHRecorder:
                     with open(f"{self.destination_path}{session}", 'a', encoding='utf-8') as destination_file:
                         destination_file.write(source_file.read())
             except UnicodeDecodeError:
-                print(f"Failed to decode the file {session}, so skipping it")
+                logging.warning(f"Failed to decode the file {session}, so skipping it")
                 # check if the file is zero bytes, remove it
                 if os.path.getsize(f"{self.destination_path}{session}") == 0:
-                    print("removing the file")
+                    logging.debug("removing the file")
                     os.remove(f"{self.destination_path}{session}")
                     self._new_sessions.remove(session)
 
@@ -107,7 +107,7 @@ class SSHRecorder:
         """
         self._paused = False
         self._new_sessions = [f for f in os.listdir(self.source_path) if f.endswith(".log") and f not in self._existing_sessions]
-        print("resume recording!")
+        logging.info("resume recording!")
         for session in self._new_sessions:
             open(f"{self.source_path}{session}", 'w').close()
 
@@ -116,22 +116,22 @@ class SSHRecorder:
         stop recording the SSH session
         :return:
         """
-        print("stop recording!")
+        logging.info("stop recording!")
         if not self._paused:
             self.pause_recording()
-        print(f"Here is the list of files that were recorded: {self._new_sessions}")
+        logging.info(f"Here is the list of files that were recorded: {self._new_sessions}")
 
     def call_show_system_end(self):
         """
         Call the show system end on all the devices
         :return:
         """
-        print("calling show system end on all devices")
+        logging.info("calling show system end on all devices")
         devices = [session for session in self._new_sessions if '_dn_' in session and 'pass' not in session]
         if not devices:
             return
         for device in devices:
-            print(f"Calling show system end on {device}")
+            logging.debug(f"Calling show system end on {device}")
             userhost = device.split("_")[0]
             user, host = userhost.split("@")
             with open(f'{self.destination_path}pass_{device}') as fp:
@@ -165,20 +165,20 @@ class SSHRecorder:
                     output += buffer.decode('utf-8')
                     time.sleep(1)  # Adjust as necessary based on testing
 
-                print("\nGot show system\n\n\n")
-                print(output)
+                logging.debug("\nGot show system\n\n\n")
+                logging.debug(output)
 
                 with open(f"{self.destination_path}/{device}", "a") as f:
                     f.write("# Final show system\n")
                     f.write(output)
             except Exception as e:
-                print(f"Failed to call show system end on {device} due to {e}")
+                logging.warning(f"Failed to call show system end on {device} due to {e}")
                 continue
             finally:
                 # Close the SSH connection
                 client.close()
 
-    def upload_to_jira(self, show_system=False):
+    def upload_to_jira(self):
         """
         Upload the recordings to Jira
         :return name of the file uploaded or None if nothing was uploaded
@@ -189,9 +189,9 @@ class SSHRecorder:
         if not self._new_sessions:
             return
 
-        if not show_system:
-            # need to call the show system on all devices before uploading the logs
-            self.call_show_system_end()
+        # need to call the show system on all devices before uploading the logs
+        self.call_show_system_end()
+
         all_files = [f for f in os.listdir(self.destination_path)]
         for f in all_files:
             os.system(clean_script.format(f"{self.destination_path}{f}"))
@@ -215,12 +215,12 @@ class SSHRecorder:
                     jira.add_attachment(issue=self.jira_ticket, attachment=filename)
                     break
             except Exception as e:
-                print(f"Failed to upload the file to Jira, retrying {i}/{retries}")
+                logging.warning(f"Failed to upload the file to Jira, retrying {i}/{retries}")
                 exception = e
                 time.sleep(1)
                 continue
         else:
-            print(f"Failed to upload the file to Jira after {retries} retries")
+            logging.error(f"Failed to upload the file to Jira after {retries} retries")
             if exception:
                 raise exception  # Re-raise the original exception
         return filename
