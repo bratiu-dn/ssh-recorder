@@ -14,8 +14,8 @@ from log_config import setup_logging
 from write import SSHRecorder, SOURCE_PATH
 
 
-version = "1.6.0"
-date = "28-Feb-2024"
+version = "1.6.1"
+date = "04-Mar-2024"
 
 
 class App(QWidget):

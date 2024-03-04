@@ -89,16 +89,16 @@ class SSHRecorder:
         for session in self._new_sessions[:]:
             try:
                 # copy the contents on top of the original file
-                with open(f"{self.source_path}{session}", 'r', encoding='utf-8') as source_file:
-                    with open(f"{self.destination_path}{session}", 'a', encoding='utf-8') as destination_file:
+                with open(f"{self.source_path}{session}", 'rb') as source_file:
+                    with open(f"{self.destination_path}{session}", 'ab') as destination_file:
                         destination_file.write(source_file.read())
-            except UnicodeDecodeError:
-                logging.warning(f"Failed to decode the file {session}, so skipping it")
                 # check if the file is zero bytes, remove it
                 if os.path.getsize(f"{self.destination_path}{session}") == 0:
                     logging.debug("removing the file")
                     os.remove(f"{self.destination_path}{session}")
                     self._new_sessions.remove(session)
+            except OSError as e:
+                logging.error(f"Failed to copy file: {e}")
 
     def resume_recording(self):
         """
@@ -184,7 +184,7 @@ class SSHRecorder:
         :return name of the file uploaded or None if nothing was uploaded
         """
 
-        clean_script = "tr -d '\\000' < {0} | perl -0777 -pe 's/\\e\\[[0-9;?]*[nmlhHfGJKF]//g; s/.\\x08//g while /\\x08/' > {0}.txt"
+        clean_script = "LC_ALL=C tr -d '\\000' < {0} | perl -0777 -pe 's/\\e\\[[0-9;?]*[nmlhHfGJKF]//g; s/.\\x08//g while /\\x08/' > {0}.txt"
         # do nothing if there are no files to upload
         if not self._new_sessions:
             return
@@ -243,3 +243,6 @@ if __name__ == '__main__':
     # start_recording = ssh_recorder.start_recording
     # pause_recording = ssh_recorder.pause_recording
     # resume_recording = ssh_recorder.resume_recording
+    filename = "source.log"
+    clean_script = "LC_ALL=C tr -d '\\000' < {0} | perl -0777 -pe 's/\\e\\[[0-9;?]*[nmlhHfGJKF]//g; s/.\\x08//g while /\\x08/' > {0}.txt"
+    os.system(clean_script.format("source.log"))
