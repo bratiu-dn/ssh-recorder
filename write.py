@@ -1,12 +1,12 @@
 import os
 import shutil
-import subprocess
 import time
 from datetime import datetime
 from contextlib import contextmanager
 import paramiko
 import logging
 from jira import JIRA
+import re
 
 SOURCE_PATH = "/tmp/ssh_logs/"
 
@@ -178,13 +178,62 @@ class SSHRecorder:
                 # Close the SSH connection
                 client.close()
 
+    @staticmethod
+    def clean_file(input_filename, output_filename):
+        """
+        Added a pure python script to clean some problematic files that might get stuck in infinite loops
+        :param input_filename: The name of the file to clean
+        :param output_filename: The name of the file to save the cleaned content
+        :return:
+        """
+        # Read the file content in binary mode
+        with open(input_filename, 'rb') as file:
+            content = file.read()
+
+        # 1. Remove null bytes directly in binary
+        content = content.replace(b'\x00', b'')
+
+        # 2. Strip ANSI escape sequences using binary regex
+        ansi_escape = re.compile(rb'\x1b\[([0-9;?]*)([nmlhHfGJKF])')
+        content = ansi_escape.sub(b'', content)
+
+        # 3. Remove characters followed by a backspace character, repeat until no backspace characters remain
+        backspace_pattern = re.compile(b'.\x08')
+        iteration = 0  # Initialize iteration counter
+        previous_length = len(content)
+
+        while b'\x08' in content:
+            # Remove patterns of any character followed by a backspace in binary
+            content = backspace_pattern.sub(b'', content)
+
+            # Increment iteration counter
+            iteration += 1
+
+            # Check for changes in content length to detect progress
+            current_length = len(content)
+            if current_length == previous_length:
+                # Handle isolated backspace characters by removing them in binary
+                content = content.replace(b'\x08', b'')
+                current_length = len(content)
+
+                # If still no change, break the loop to avoid getting stuck
+                if current_length == previous_length:
+                    logging.error(f"No change after iteration {iteration}. Loop might be stuck.")
+                    break
+
+            # Update previous_length for the next iteration
+            previous_length = current_length
+
+        # Write the cleaned content to the output file in binary mode
+        with open(output_filename, 'wb') as file:
+            file.write(content)
+
     def upload_to_jira(self):
         """
         Upload the recordings to Jira
         :return name of the file uploaded or None if nothing was uploaded
         """
 
-        clean_script = "LC_ALL=C tr -d '\\000' < {0} | perl -0777 -pe 's/\\e\\[[0-9;?]*[nmlhHfGJKF]//g; s/.\\x08//g while /\\x08/' > {0}.txt"
         # do nothing if there are no files to upload
         if not self._new_sessions:
             return
@@ -194,7 +243,8 @@ class SSHRecorder:
 
         all_files = [f for f in os.listdir(self.destination_path)]
         for f in all_files:
-            os.system(clean_script.format(f"{self.destination_path}{f}"))
+            logging.info(f"Cleaning file {f}")
+            self.clean_file(f"{self.destination_path}{f}", f"{self.destination_path}{f}.txt")
         # Update the list of files to include the new txt files
         all_files = [f for f in os.listdir(self.destination_path)]
         # Filter files to exclude any that contain "pass" in their name and are .txt files
@@ -240,9 +290,4 @@ class SSHRecorder:
 
 if __name__ == '__main__':
     ssh_recorder = SSHRecorder()
-    # start_recording = ssh_recorder.start_recording
-    # pause_recording = ssh_recorder.pause_recording
-    # resume_recording = ssh_recorder.resume_recording
-    filename = "source.log"
-    clean_script = "LC_ALL=C tr -d '\\000' < {0} | perl -0777 -pe 's/\\e\\[[0-9;?]*[nmlhHfGJKF]//g; s/.\\x08//g while /\\x08/' > {0}.txt"
-    os.system(clean_script.format("source.log"))
+    # add code here for debug purposes
